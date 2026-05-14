@@ -1,7 +1,26 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class LatestAnomalyBrief(BaseModel):
+    id: int
+    detected_at: datetime
+    anomaly_type: str
+    detail: dict[str, Any] = Field(default_factory=dict)
+
+
+class FleetVehicleRow(BaseModel):
+    vehicle_id: str
+    current_status: str
+    battery_pct: int | None
+    last_event_ts: datetime | None
+    latest_anomaly: LatestAnomalyBrief | None = None
+
+
+class FleetVehiclesSnapshotOut(BaseModel):
+    vehicles: list[FleetVehicleRow]
 
 
 class ZoneCountOut(BaseModel):

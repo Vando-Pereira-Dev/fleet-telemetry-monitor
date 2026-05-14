@@ -5,6 +5,7 @@ Vertical slice: ingest telemetry from a fleet of industrial vehicles, detect ano
 ## Prerequisites
 
 - **Python 3.11+**
+- **Node.js 20+** (for the dashboard)
 - **Docker** (for PostgreSQL during development)
 
 ## Backend setup
@@ -89,6 +90,7 @@ A **201** response includes `telemetry_event_id` and how many `anomalies` rows w
 
 | Method | Path | Description |
 |--------|------|-------------|
+| `GET` | `/vehicles` | All vehicles with snapshot fields plus **latest anomaly** per vehicle (Postgres `LATERAL`) |
 | `GET` | `/zones/counts` | Per-zone `entry_count` in `ZONES` order |
 | `GET` | `/fleet/state` | Fleet-wide counts by `current_status` plus `total` vehicles |
 | `GET` | `/anomalies` | Recent anomalies; optional `vehicle_id`, `from_ts`, `to_ts` (ISO-8601), `limit` (default 200, max 2000) |
@@ -107,6 +109,36 @@ POST http://127.0.0.1:8000/vehicles/v-12/missions
 
 `POST /vehicles/{id}/status` body (fault example): `{"status":"fault","maintenance_reason":"Motor controller overcurrent"}`. A first-time **`fault`** via `POST /telemetry` runs the same cancel-and-maintenance workflow (reason from `error_codes` or a default string), but **only on the transition into fault** (no duplicate maintenance while already fault).
 
+## Dashboard (React + TypeScript)
+
+The UI lives in `frontend/` (Vite). It polls **`GET /vehicles`**, **`GET /zones/counts`**, and **`GET /fleet/state`** every **2.5s** (see ADR for trade-offs). CORS is enabled for `http://127.0.0.1:5173` and `http://localhost:5173`.
+
+1. **Run the backend** (see above) on port **8000**.
+
+2. **Configure the dashboard API base URL (optional)**
+
+   ```bash
+   copy frontend\.env.example frontend\.env
+   ```
+
+   On Linux or macOS:
+
+   ```bash
+   cp frontend/.env.example frontend/.env
+   ```
+
+   Adjust `VITE_API_BASE_URL` if your API is not at `http://127.0.0.1:8000`.
+
+3. **Install and run**
+
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+   Open the URL Vite prints (typically [http://127.0.0.1:5173](http://127.0.0.1:5173)).
+
 ## Repository layout
 
 | Path | Purpose |
@@ -120,7 +152,9 @@ POST http://127.0.0.1:8000/vehicles/v-12/missions
 | `backend/app/api/routes/anomalies.py` | `GET /anomalies` |
 | `backend/app/api/routes/fleet.py` | `GET /fleet/state` |
 | `backend/app/api/routes/zones.py` | `GET /zones/counts` |
-| `backend/app/api/routes/vehicles.py` | `POST /vehicles/.../status`, `POST /vehicles/.../missions` |
+| `frontend/` | Vite + React + TypeScript dashboard |
+| `backend/app/api/routes/vehicles.py` | `GET /vehicles`, vehicle commands |
+| `backend/app/services/read_queries.py` | Read-model queries (includes vehicles snapshot SQL) |
 | `backend/app/services/fleet_commands.py` | Fault transition + mission start (row locks) |
 | `docker-compose.yml` | Local PostgreSQL 16 |
 | `.env.example` | Sample `DATABASE_URL` |

@@ -1,13 +1,20 @@
 from fastapi import APIRouter, status
 
 from app.api.deps import DbSession
+from app.schemas.read_models import FleetVehiclesSnapshotOut
 from app.schemas.vehicles import MissionOut, VehicleStatusOut, VehicleStatusUpdate
 from app.services.fleet_commands import (
     apply_vehicle_status_update,
     start_active_mission,
 )
+from app.services.read_queries import fetch_vehicles_snapshot
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
+
+
+@router.get("", response_model=FleetVehiclesSnapshotOut)
+async def get_vehicles_snapshot(db: DbSession) -> FleetVehiclesSnapshotOut:
+    return await fetch_vehicles_snapshot(db)
 
 
 @router.post("/{vehicle_id}/status", response_model=VehicleStatusOut)

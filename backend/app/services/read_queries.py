@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.constants import ZONES
@@ -10,9 +10,59 @@ from app.db.models import Anomaly, Vehicle, ZoneEntryCount
 from app.schemas.read_models import (
     AnomalyOut,
     FleetStatusCountsOut,
+    FleetVehicleRow,
+    FleetVehiclesSnapshotOut,
+    LatestAnomalyBrief,
     ZoneCountOut,
     ZonesCountsOut,
 )
+
+VEHICLES_SNAPSHOT_SQL = text(
+    """
+    SELECT
+      v.vehicle_id,
+      v.current_status,
+      v.battery_pct,
+      v.last_event_ts,
+      a.id AS anomaly_id,
+      a.detected_at AS anomaly_detected_at,
+      a.anomaly_type AS anomaly_type,
+      a.detail AS anomaly_detail
+    FROM vehicles v
+    LEFT JOIN LATERAL (
+      SELECT id, detected_at, anomaly_type, detail
+      FROM anomalies an
+      WHERE an.vehicle_id = v.vehicle_id
+      ORDER BY an.detected_at DESC
+      LIMIT 1
+    ) a ON true
+    ORDER BY v.vehicle_id
+    """
+)
+
+
+async def fetch_vehicles_snapshot(session: AsyncSession) -> FleetVehiclesSnapshotOut:
+    result = await session.execute(VEHICLES_SNAPSHOT_SQL)
+    vehicles: list[FleetVehicleRow] = []
+    for row in result.mappings().all():
+        latest: LatestAnomalyBrief | None = None
+        if row["anomaly_id"] is not None:
+            latest = LatestAnomalyBrief(
+                id=int(row["anomaly_id"]),
+                detected_at=row["anomaly_detected_at"],
+                anomaly_type=str(row["anomaly_type"]),
+                detail=dict(row["anomaly_detail"] or {}),
+            )
+        vehicles.append(
+            FleetVehicleRow(
+                vehicle_id=str(row["vehicle_id"]),
+                current_status=str(row["current_status"]),
+                battery_pct=row["battery_pct"],
+                last_event_ts=row["last_event_ts"],
+                latest_anomaly=latest,
+            )
+        )
+    return FleetVehiclesSnapshotOut(vehicles=vehicles)
 
 
 async def fetch_zone_counts(session: AsyncSession) -> ZonesCountsOut:
