@@ -75,6 +75,16 @@ Vertical slice: ingest telemetry from a fleet of industrial vehicles, detect ano
    - Database readiness: [http://127.0.0.1:8000/ready](http://127.0.0.1:8000/ready) → `{"status":"ready","database":"connected"}` (returns **503** if Postgres is down or URL is wrong)
    - OpenAPI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
+### Ingest telemetry (`POST /telemetry`)
+
+With the API running and migrations applied, post a sample event (JSON uses **`timestamp`** for event time):
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/telemetry -H "Content-Type: application/json" -d "{\"vehicle_id\":\"v-1\",\"timestamp\":\"2026-05-14T12:00:00Z\",\"lat\":37.41,\"lon\":-122.08,\"battery_pct\":78,\"speed_mps\":1.2,\"status\":\"moving\",\"error_codes\":[],\"zone_entered\":null}"
+```
+
+A **201** response includes `telemetry_event_id` and how many `anomalies` rows were created for that event. Rules live in `app/services/anomaly_detection.py` and will be summarized in the ADR.
+
 ## Repository layout
 
 | Path | Purpose |
@@ -83,6 +93,9 @@ Vertical slice: ingest telemetry from a fleet of industrial vehicles, detect ano
 | `backend/alembic/` | Alembic migrations (`001_initial` = schema + seed) |
 | `backend/app/constants.py` | `ZONES`, fleet size, allowed status strings |
 | `backend/app/db/models.py` | SQLAlchemy models |
+| `backend/app/api/routes/telemetry.py` | `POST /telemetry` |
+| `backend/app/services/telemetry_ingest.py` | Transactional ingest + row locks |
+| `backend/app/services/anomaly_detection.py` | Anomaly rules on ingest |
 | `docker-compose.yml` | Local PostgreSQL 16 |
 | `.env.example` | Sample `DATABASE_URL` |
 

@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
 
+from app.api.routes.telemetry import router as telemetry_router
 from app.config import get_settings
 from app.db import models  # noqa: F401 — register ORM mappers
 from app.db.session import AsyncSessionLocal, engine
@@ -21,6 +22,8 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.include_router(telemetry_router)
 
 
 @app.get("/health", tags=["ops"])
