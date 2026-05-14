@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Anomaly, TelemetryEvent, Vehicle, ZoneEntryCount
 from app.schemas.telemetry import TelemetryCreate, TelemetryIngestResult
 from app.services.anomaly_detection import _VehicleSnapshot, detect_telemetry_anomalies
+from app.services.fleet_commands import cancel_active_mission_and_record_maintenance
 
 
 async def ingest_telemetry(session: AsyncSession, payload: TelemetryCreate) -> TelemetryIngestResult:
@@ -54,6 +55,19 @@ async def ingest_telemetry(session: AsyncSession, payload: TelemetryCreate) -> T
                 detail="Unknown zone_entered (not configured in zone_entry_counts)",
             )
         zone.entry_count += 1
+
+    entering_fault = payload.status == "fault" and vehicle.current_status != "fault"
+    if entering_fault:
+        reason = (
+            ", ".join(payload.error_codes)
+            if payload.error_codes
+            else "Fault reported via telemetry"
+        )
+        await cancel_active_mission_and_record_maintenance(
+            session,
+            vehicle_id=payload.vehicle_id,
+            maintenance_reason=reason,
+        )
 
     vehicle.current_status = payload.status
     vehicle.battery_pct = payload.battery_pct

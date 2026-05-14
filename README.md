@@ -92,6 +92,8 @@ A **201** response includes `telemetry_event_id` and how many `anomalies` rows w
 | `GET` | `/zones/counts` | Per-zone `entry_count` in `ZONES` order |
 | `GET` | `/fleet/state` | Fleet-wide counts by `current_status` plus `total` vehicles |
 | `GET` | `/anomalies` | Recent anomalies; optional `vehicle_id`, `from_ts`, `to_ts` (ISO-8601), `limit` (default 200, max 2000) |
+| `POST` | `/vehicles/{vehicle_id}/status` | Status change; transitioning **to `fault`** cancels the active mission (if any) and creates a **maintenance** row (requires `maintenance_reason`) |
+| `POST` | `/vehicles/{vehicle_id}/missions` | Start an **active** mission when none exists (**409** if one is already active) |
 
 Examples:
 
@@ -99,7 +101,11 @@ Examples:
 GET http://127.0.0.1:8000/zones/counts
 GET http://127.0.0.1:8000/fleet/state
 GET http://127.0.0.1:8000/anomalies?vehicle_id=v-1&from_ts=2026-05-01T00:00:00Z&to_ts=2026-05-31T23:59:59Z
+POST http://127.0.0.1:8000/vehicles/v-12/status
+POST http://127.0.0.1:8000/vehicles/v-12/missions
 ```
+
+`POST /vehicles/{id}/status` body (fault example): `{"status":"fault","maintenance_reason":"Motor controller overcurrent"}`. A first-time **`fault`** via `POST /telemetry` runs the same cancel-and-maintenance workflow (reason from `error_codes` or a default string), but **only on the transition into fault** (no duplicate maintenance while already fault).
 
 ## Repository layout
 
@@ -114,7 +120,8 @@ GET http://127.0.0.1:8000/anomalies?vehicle_id=v-1&from_ts=2026-05-01T00:00:00Z&
 | `backend/app/api/routes/anomalies.py` | `GET /anomalies` |
 | `backend/app/api/routes/fleet.py` | `GET /fleet/state` |
 | `backend/app/api/routes/zones.py` | `GET /zones/counts` |
-| `backend/app/services/read_queries.py` | Read-model queries |
+| `backend/app/api/routes/vehicles.py` | `POST /vehicles/.../status`, `POST /vehicles/.../missions` |
+| `backend/app/services/fleet_commands.py` | Fault transition + mission start (row locks) |
 | `docker-compose.yml` | Local PostgreSQL 16 |
 | `.env.example` | Sample `DATABASE_URL` |
 
