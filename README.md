@@ -2,6 +2,11 @@
 
 Vertical slice: ingest telemetry from a fleet of industrial vehicles, detect anomalies, track zone entries, and expose fleet state via REST. A small React dashboard consumes those APIs.
 
+## Documentation
+
+- [ADR-0001 — Fleet telemetry vertical slice](docs/ADR-0001-fleet-telemetry-vertical-slice.md) (architecture decisions, assumptions, scaling notes)
+- [AI interaction log](AI_INTERACTION_LOG.md) (how AI assistance was used on this project)
+
 ## Prerequisites
 
 - **Python 3.11+**
@@ -76,20 +81,11 @@ Vertical slice: ingest telemetry from a fleet of industrial vehicles, detect ano
    - Database readiness: [http://127.0.0.1:8000/ready](http://127.0.0.1:8000/ready) → `{"status":"ready","database":"connected"}` (returns **503** if Postgres is down or URL is wrong)
    - OpenAPI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
-### Ingest telemetry (`POST /telemetry`)
-
-With the API running and migrations applied, post a sample event (JSON uses **`timestamp`** for event time):
-
-```bash
-curl -s -X POST http://127.0.0.1:8000/telemetry -H "Content-Type: application/json" -d "{\"vehicle_id\":\"v-1\",\"timestamp\":\"2026-05-14T12:00:00Z\",\"lat\":37.41,\"lon\":-122.08,\"battery_pct\":78,\"speed_mps\":1.2,\"status\":\"moving\",\"error_codes\":[],\"zone_entered\":null}"
-```
-
-A **201** response includes `telemetry_event_id` and how many `anomalies` rows were created for that event. Rules live in `app/services/anomaly_detection.py` and will be summarized in the ADR.
-
-### Read APIs
+### HTTP API (quick reference)
 
 | Method | Path | Description |
 |--------|------|-------------|
+| `POST` | `/telemetry` | Ingest one telemetry event (JSON field `timestamp`) |
 | `GET` | `/vehicles` | All vehicles with snapshot fields plus **latest anomaly** per vehicle (Postgres `LATERAL`) |
 | `GET` | `/zones/counts` | Per-zone `entry_count` in `ZONES` order |
 | `GET` | `/fleet/state` | Fleet-wide counts by `current_status` plus `total` vehicles |
@@ -100,6 +96,7 @@ A **201** response includes `telemetry_event_id` and how many `anomalies` rows w
 Examples:
 
 ```text
+GET http://127.0.0.1:8000/vehicles
 GET http://127.0.0.1:8000/zones/counts
 GET http://127.0.0.1:8000/fleet/state
 GET http://127.0.0.1:8000/anomalies?vehicle_id=v-1&from_ts=2026-05-01T00:00:00Z&to_ts=2026-05-31T23:59:59Z
@@ -108,6 +105,16 @@ POST http://127.0.0.1:8000/vehicles/v-12/missions
 ```
 
 `POST /vehicles/{id}/status` body (fault example): `{"status":"fault","maintenance_reason":"Motor controller overcurrent"}`. A first-time **`fault`** via `POST /telemetry` runs the same cancel-and-maintenance workflow (reason from `error_codes` or a default string), but **only on the transition into fault** (no duplicate maintenance while already fault).
+
+### Ingest telemetry (`POST /telemetry`)
+
+With the API running and migrations applied, post a sample event (JSON uses **`timestamp`** for event time):
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/telemetry -H "Content-Type: application/json" -d "{\"vehicle_id\":\"v-1\",\"timestamp\":\"2026-05-14T12:00:00Z\",\"lat\":37.41,\"lon\":-122.08,\"battery_pct\":78,\"speed_mps\":1.2,\"status\":\"moving\",\"error_codes\":[],\"zone_entered\":null}"
+```
+
+A **201** response includes `telemetry_event_id` and how many `anomalies` rows were created for that event. Rules are implemented in `app/services/anomaly_detection.py` and summarized in [`docs/ADR-0001-fleet-telemetry-vertical-slice.md`](docs/ADR-0001-fleet-telemetry-vertical-slice.md).
 
 ## Dashboard (React + TypeScript)
 
@@ -143,6 +150,8 @@ The UI lives in `frontend/` (Vite). It polls **`GET /vehicles`**, **`GET /zones/
 
 | Path | Purpose |
 |------|---------|
+| `docs/` | Architecture decision records |
+| `AI_INTERACTION_LOG.md` | AI assistance log (assignment deliverable) |
 | `backend/` | FastAPI application |
 | `backend/alembic/` | Alembic migrations (`001_initial` = schema + seed) |
 | `backend/app/constants.py` | `ZONES`, fleet size, allowed status strings |
