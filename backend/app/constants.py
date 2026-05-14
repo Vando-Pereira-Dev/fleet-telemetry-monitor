@@ -1,0 +1,30 @@
+"""Warehouse floor zones (edge clients set `zone_entered` on boundary crossing)."""
+
+ZONES: list[str] = [
+    "inbound_dock_a",
+    "inbound_dock_b",
+    "receiving_staging",
+    "aisle_a",
+    "aisle_b",
+    "aisle_c",
+    "high_bay_1",
+    "high_bay_2",
+    "bulk_storage",
+    "pick_zone_1",
+    "pick_zone_2",
+    "pack_station",
+    "sort_belt",
+    "outbound_dock_a",
+    "outbound_dock_b",
+    "shipping_staging",
+    "charging_bay_1",
+    "charging_bay_2",
+    "charging_bay_3",
+    "maintenance_bay",
+]
+
+FLEET_SIZE = 50
+
+VEHICLE_STATUS_VALUES = ("idle", "moving", "charging", "fault")
+
+MISSION_STATE_VALUES = ("active", "cancelled", "completed")

@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +15,15 @@ class Settings(BaseSettings):
     database_url: str = (
         "postgresql+asyncpg://fleet:fleet@localhost:5432/fleet_telemetry"
     )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def database_url_sync(self) -> str:
+        """Sync SQLAlchemy URL for Alembic (psycopg2-binary)."""
+        return self.database_url.replace(
+            "postgresql+asyncpg://",
+            "postgresql://",
+        )
 
 
 @lru_cache

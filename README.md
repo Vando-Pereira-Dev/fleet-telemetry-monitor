@@ -7,7 +7,7 @@ Vertical slice: ingest telemetry from a fleet of industrial vehicles, detect ano
 - **Python 3.11+**
 - **Docker** (for PostgreSQL during development)
 
-## Quick start (backend only — this step)
+## Backend setup
 
 1. **Start PostgreSQL**
 
@@ -51,7 +51,17 @@ Vertical slice: ingest telemetry from a fleet of industrial vehicles, detect ano
    pip install -r requirements.txt
    ```
 
-4. **Run the API**
+4. **Apply database migrations**
+
+   From the `backend` directory (with venv activated and PostgreSQL running):
+
+   ```bash
+   alembic upgrade head
+   ```
+
+   This creates all tables and seeds **50** vehicles (`v-1` … `v-50`, status `idle`) and **20** zone rows (`entry_count = 0`). Zone IDs match `app/constants.py` (`ZONES`).
+
+5. **Run the API**
 
    From the `backend` directory (with venv activated):
 
@@ -59,18 +69,20 @@ Vertical slice: ingest telemetry from a fleet of industrial vehicles, detect ano
    python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
-5. **Verify**
+6. **Verify**
 
    - Health: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health) → `{"status":"ok"}`
+   - Database readiness: [http://127.0.0.1:8000/ready](http://127.0.0.1:8000/ready) → `{"status":"ready","database":"connected"}` (returns **503** if Postgres is down or URL is wrong)
    - OpenAPI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-
-The database is not wired into the app until the next implementation step; the API runs without a successful DB connection for now.
 
 ## Repository layout
 
 | Path | Purpose |
 |------|---------|
 | `backend/` | FastAPI application |
+| `backend/alembic/` | Alembic migrations (`001_initial` = schema + seed) |
+| `backend/app/constants.py` | `ZONES`, fleet size, allowed status strings |
+| `backend/app/db/models.py` | SQLAlchemy models |
 | `docker-compose.yml` | Local PostgreSQL 16 |
 | `.env.example` | Sample `DATABASE_URL` |
 
