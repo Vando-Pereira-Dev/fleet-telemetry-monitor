@@ -85,6 +85,22 @@ curl -s -X POST http://127.0.0.1:8000/telemetry -H "Content-Type: application/js
 
 A **201** response includes `telemetry_event_id` and how many `anomalies` rows were created for that event. Rules live in `app/services/anomaly_detection.py` and will be summarized in the ADR.
 
+### Read APIs
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/zones/counts` | Per-zone `entry_count` in `ZONES` order |
+| `GET` | `/fleet/state` | Fleet-wide counts by `current_status` plus `total` vehicles |
+| `GET` | `/anomalies` | Recent anomalies; optional `vehicle_id`, `from_ts`, `to_ts` (ISO-8601), `limit` (default 200, max 2000) |
+
+Examples:
+
+```text
+GET http://127.0.0.1:8000/zones/counts
+GET http://127.0.0.1:8000/fleet/state
+GET http://127.0.0.1:8000/anomalies?vehicle_id=v-1&from_ts=2026-05-01T00:00:00Z&to_ts=2026-05-31T23:59:59Z
+```
+
 ## Repository layout
 
 | Path | Purpose |
@@ -95,7 +111,10 @@ A **201** response includes `telemetry_event_id` and how many `anomalies` rows w
 | `backend/app/db/models.py` | SQLAlchemy models |
 | `backend/app/api/routes/telemetry.py` | `POST /telemetry` |
 | `backend/app/services/telemetry_ingest.py` | Transactional ingest + row locks |
-| `backend/app/services/anomaly_detection.py` | Anomaly rules on ingest |
+| `backend/app/api/routes/anomalies.py` | `GET /anomalies` |
+| `backend/app/api/routes/fleet.py` | `GET /fleet/state` |
+| `backend/app/api/routes/zones.py` | `GET /zones/counts` |
+| `backend/app/services/read_queries.py` | Read-model queries |
 | `docker-compose.yml` | Local PostgreSQL 16 |
 | `.env.example` | Sample `DATABASE_URL` |
 

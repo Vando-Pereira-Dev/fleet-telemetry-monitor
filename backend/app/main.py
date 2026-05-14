@@ -3,7 +3,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
 
+from app.api.routes.anomalies import router as anomalies_router
+from app.api.routes.fleet import router as fleet_router
 from app.api.routes.telemetry import router as telemetry_router
+from app.api.routes.zones import router as zones_router
 from app.config import get_settings
 from app.db import models  # noqa: F401 — register ORM mappers
 from app.db.session import AsyncSessionLocal, engine
@@ -24,6 +27,9 @@ app = FastAPI(
 )
 
 app.include_router(telemetry_router)
+app.include_router(zones_router)
+app.include_router(fleet_router)
+app.include_router(anomalies_router)
 
 
 @app.get("/health", tags=["ops"])
